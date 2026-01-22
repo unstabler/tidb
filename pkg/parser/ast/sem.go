@@ -1225,7 +1225,17 @@ func (n *ProcedureInfo) SEMCommand() string {
 }
 
 // SEMCommand returns the command string for the statement.
+func (n *FunctionInfo) SEMCommand() string {
+	return ProcedureCommand
+}
+
+// SEMCommand returns the command string for the statement.
 func (n *DropProcedureStmt) SEMCommand() string {
+	return ProcedureCommand
+}
+
+// SEMCommand returns the command string for the statement.
+func (n *DropFunctionStmt) SEMCommand() string {
 	return ProcedureCommand
 }
 
@@ -1281,6 +1291,11 @@ func (n *ProcedureWhileStmt) SEMCommand() string {
 
 // SEMCommand returns the command string for the statement.
 func (n *ProcedureSignalStmt) SEMCommand() string {
+	return ProcedureCommand
+}
+
+// SEMCommand returns the command string for the statement.
+func (n *ProcedureReturnStmt) SEMCommand() string {
 	return ProcedureCommand
 }
 

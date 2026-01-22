@@ -101,6 +101,7 @@ import (
 	column            "COLUMN"
 	condition         "CONDITION"
 	constraint        "CONSTRAINT"
+	contains          "CONTAINS"
 	continueKwd       "CONTINUE"
 	convert           "CONVERT"
 	create            "CREATE"
@@ -125,6 +126,7 @@ import (
 	denseRank         "DENSE_RANK"
 	desc              "DESC"
 	describe          "DESCRIBE"
+	deterministic     "DETERMINISTIC"
 	distinct          "DISTINCT"
 	distinctRow       "DISTINCTROW"
 	div               "DIV"
@@ -212,6 +214,7 @@ import (
 	minuteMicrosecond "MINUTE_MICROSECOND"
 	minuteSecond      "MINUTE_SECOND"
 	mod               "MOD"
+	modifies          "MODIFIES"
 	natural           "NATURAL"
 	not               "NOT"
 	noWriteToBinLog   "NO_WRITE_TO_BINLOG"
@@ -238,6 +241,7 @@ import (
 	rangeKwd          "RANGE"
 	rank              "RANK"
 	read              "READ"
+	reads             "READS"
 	realType          "REAL"
 	recursive         "RECURSIVE"
 	references        "REFERENCES"
@@ -248,6 +252,8 @@ import (
 	replace           "REPLACE"
 	require           "REQUIRE"
 	restrict          "RESTRICT"
+	returnKwd         "RETURN"
+	returnsKwd        "RETURNS"
 	revoke            "REVOKE"
 	right             "RIGHT"
 	rlike             "RLIKE"
@@ -1010,6 +1016,7 @@ import (
 	CreateBindingStmt          "CREATE BINDING statement"
 	CreatePolicyStmt           "CREATE PLACEMENT POLICY statement"
 	CreateProcedureStmt        "CREATE PROCEDURE statement"
+	CreateFunctionStmt         "CREATE FUNCTION statement"
 	AddQueryWatchStmt          "ADD QUERY WATCH statement"
 	CreateResourceGroupStmt    "CREATE RESOURCE GROUP statement"
 	CreateSequenceStmt         "CREATE SEQUENCE statement"
@@ -1018,6 +1025,7 @@ import (
 	DropDatabaseStmt           "DROP DATABASE statement"
 	DropIndexStmt              "DROP INDEX statement"
 	DropProcedureStmt          "DROP PROCEDURE statement"
+	DropFunctionStmt           "DROP FUNCTION statement"
 	DropQueryWatchStmt         "DROP QUERY WATCH statement"
 	DropResourceGroupStmt      "DROP RESOURCE GROUP statement"
 	DropStatisticsStmt         "DROP STATISTICS statement"
@@ -1101,6 +1109,8 @@ import (
 	TrafficStmt                "Traffic capture/replay statement"
 	ProcedureUnlabeledBlock    "The statement block without label in procedure"
 	ProcedureBlockContent      "The statement block in procedure expressed with 'Begin ... End'"
+	FunctionStatementStmt      "The statement in function body (without parenthesized subselect)"
+	FunctionProcStmt           "The function statement"
 	SimpleWhenThen             "Procedure case when then"
 	SearchWhenThen             "Procedure search when then"
 	ProcedureIfstmt            "The if statement in procedure, expressed by if ... elseif .. else ... end if"
@@ -1121,6 +1131,7 @@ import (
 	ProcedurelabeledLoopStmt   "The loop block with label in procedure"
 	ProcedureIterate           "The iterate statement in procedure, expressed by `iterate ...`"
 	ProcedureLeave             "The leave statement in procedure, expressed by `leave ...`"
+	ProcedureReturnStmt        "The return statement in procedure, expressed by `return expr`"
 	ProcedureSignalStmt        "The signal statement in procedure, expressed by `signal ...`"
 
 %type	<item>
@@ -1562,6 +1573,13 @@ import (
 	OptSpPdparams                          "Optional procedure param list"
 	SpPdparams                             "Procedure params"
 	SpPdparam                              "Procedure param"
+	FuncOptIn                              "Optional function param type"
+	OptFuncPdparams                        "Optional function param list"
+	FuncPdparams                           "Function params"
+	FuncPdparam                            "Function param"
+	RoutineCharacteristicsOpt              "Optional routine characteristics"
+	RoutineCharacteristics                 "Routine characteristics list"
+	RoutineCharacteristic                  "Routine characteristic"
 	ProcedureOptDefault                    "Optional procedure variable default value"
 	ProcedureProcStmts                     "Procedure statement list"
 	ProcedureProcStmt1s                    "One more procedure statement"
@@ -12622,6 +12640,7 @@ Statement:
 |	CreateBindingStmt
 |	CreatePolicyStmt
 |	CreateProcedureStmt
+|	CreateFunctionStmt
 |	CreateResourceGroupStmt
 |	AddQueryWatchStmt
 |	CreateSequenceStmt
@@ -12632,6 +12651,7 @@ Statement:
 |	DropIndexStmt
 |	DropTableStmt
 |	DropProcedureStmt
+|	DropFunctionStmt
 |	DropPolicyStmt
 |	DropSequenceStmt
 |	DropViewStmt
@@ -13830,6 +13850,7 @@ FieldLen:
 	}
 
 OptFieldLen:
+	/* empty */ %prec lowerThanParenthese
 	{
 		$$ = types.UnspecifiedLength
 	}
@@ -13859,6 +13880,7 @@ FieldOpts:
 	}
 
 FloatOpt:
+	/* empty */ %prec lowerThanParenthese
 	{
 		$$ = &ast.FloatOpt{Flen: types.UnspecifiedLength, Decimal: types.UnspecifiedLength}
 	}
@@ -13903,6 +13925,7 @@ OptVectorElementType:
 	}
 
 OptBinary:
+	/* empty */ %prec lowerThanParenthese
 	{
 		$$ = &ast.OptBinary{
 			IsBinary: false,
@@ -16474,6 +16497,110 @@ SpOptInout:
 		$$ = ast.MODE_INOUT
 	}
 
+/* Stored FUNCTION parameter declaration list */
+OptFuncPdparams:
+	/* Empty */
+	{
+		$$ = []*ast.StoreParameter{}
+	}
+|	FuncPdparams
+	{
+		$$ = $1
+	}
+
+FuncPdparams:
+	FuncPdparams ',' FuncPdparam
+	{
+		l := $1.([]*ast.StoreParameter)
+		l = append(l, $3.(*ast.StoreParameter))
+		$$ = l
+	}
+|	FuncPdparam
+	{
+		$$ = []*ast.StoreParameter{$1.(*ast.StoreParameter)}
+	}
+
+FuncPdparam:
+	FuncOptIn Identifier Type
+	{
+		x := &ast.StoreParameter{
+			Paramstatus: $1.(int),
+			ParamType:   $3.(*types.FieldType),
+			ParamName:   $2,
+		}
+		$$ = x
+	}
+
+FuncOptIn:
+	/* Empty */
+	{
+		$$ = ast.MODE_IN
+	}
+|	"IN"
+	{
+		$$ = ast.MODE_IN
+	}
+
+RoutineCharacteristicsOpt:
+	/* Empty */
+	{
+		$$ = []*ast.RoutineOption{}
+	}
+|	RoutineCharacteristics
+	{
+		$$ = $1
+	}
+
+RoutineCharacteristics:
+	RoutineCharacteristic
+	{
+		$$ = []*ast.RoutineOption{$1.(*ast.RoutineOption)}
+	}
+|	RoutineCharacteristics RoutineCharacteristic
+	{
+		l := $1.([]*ast.RoutineOption)
+		l = append(l, $2.(*ast.RoutineOption))
+		$$ = l
+	}
+
+RoutineCharacteristic:
+	"DETERMINISTIC"
+	{
+		$$ = &ast.RoutineOption{Tp: ast.RoutineOptionDeterministic}
+	}
+|	"NOT" "DETERMINISTIC"
+	{
+		$$ = &ast.RoutineOption{Tp: ast.RoutineOptionNotDeterministic}
+	}
+|	"NO" "SQL"
+	{
+		$$ = &ast.RoutineOption{Tp: ast.RoutineOptionNoSQL}
+	}
+|	"CONTAINS" "SQL"
+	{
+		$$ = &ast.RoutineOption{Tp: ast.RoutineOptionContainsSQL}
+	}
+|	"READS" "SQL" "DATA"
+	{
+		$$ = &ast.RoutineOption{Tp: ast.RoutineOptionReadsSQLData}
+	}
+|	"MODIFIES" "SQL" "DATA"
+	{
+		$$ = &ast.RoutineOption{Tp: ast.RoutineOptionModifiesSQLData}
+	}
+|	"SQL" "SECURITY" "DEFINER"
+	{
+		$$ = &ast.RoutineOption{Tp: ast.RoutineOptionSQLSecurityDefiner}
+	}
+|	"SQL" "SECURITY" "INVOKER"
+	{
+		$$ = &ast.RoutineOption{Tp: ast.RoutineOptionSQLSecurityInvoker}
+	}
+|	"COMMENT" stringLit
+	{
+		$$ = &ast.RoutineOption{Tp: ast.RoutineOptionComment, StrValue: $2}
+	}
+
 ProcedureStatementStmt:
 	SelectStmt
 |	SelectStmtWithClause
@@ -16490,6 +16617,23 @@ ProcedureStatementStmt:
 		}
 		$$ = sel
 	}
+|	SetStmt
+|	UpdateStmt
+|	UseStmt
+|	InsertIntoStmt
+|	ReplaceIntoStmt
+|	StartTransactionStmt
+|	CommitStmt
+|	RollbackStmt
+|	ExplainStmt
+|	SetOprStmt
+|	DeleteFromStmt
+|	AnalyzeTableStmt
+|	TruncateTableStmt
+
+FunctionStatementStmt:
+	SelectStmt
+|	SelectStmtWithClause
 |	SetStmt
 |	UpdateStmt
 |	UseStmt
@@ -17003,6 +17147,14 @@ ProcedureSignalInfoItem:
 		}
 	}
 
+ProcedureReturnStmt:
+	"RETURN" Expression
+	{
+		$$ = &ast.ProcedureReturnStmt{
+			ReturnExpr: $2.(ast.ExprNode),
+		}
+	}
+
 ProcedureProcStmt:
 	ProcedureStatementStmt
 |	ProcedureUnlabeledBlock
@@ -17017,6 +17169,23 @@ ProcedureProcStmt:
 |	ProcedureIterate
 |	ProcedureLeave
 |	ProcedureSignalStmt
+|	ProcedureReturnStmt
+
+FunctionProcStmt:
+	FunctionStatementStmt
+|	ProcedureUnlabeledBlock
+|	ProcedureIfstmt
+|	ProcedureCaseStmt
+|	ProcedureUnlabelLoopBlock
+|	ProcedureOpenCur
+|	ProcedureCloseCur
+|	ProcedureFetchInto
+|	ProcedureLabeledBlock
+|	ProcedurelabeledLoopStmt
+|	ProcedureIterate
+|	ProcedureLeave
+|	ProcedureSignalStmt
+|	ProcedureReturnStmt
 
 /********************************************************************************************
  *
@@ -17058,6 +17227,45 @@ CreateProcedureStmt:
 	}
 
 /********************************************************************************************
+ *
+ *  Create Function Statement
+ *
+ *  Example:
+ *	CREATE
+ *  [DEFINER = user]
+ *  FUNCTION [IF NOT EXISTS] sp_name ([func_parameter[,...]])
+ *  RETURNS type [routine_characteristic ...]
+ *  routine_body
+ *  func_parameter:
+ *  param_name type
+ *  routine_characteristic:
+ *  { DETERMINISTIC | NOT DETERMINISTIC | NO SQL | CONTAINS SQL | READS SQL DATA |
+ *    MODIFIES SQL DATA | SQL SECURITY {DEFINER|INVOKER} | COMMENT 'string' }
+ ********************************************************************************************/
+CreateFunctionStmt:
+	"CREATE" "FUNCTION" IfNotExists TableName '(' OptFuncPdparams ')' "RETURNS" Type RoutineCharacteristicsOpt FunctionProcStmt
+	{
+		x := &ast.FunctionInfo{
+			IfNotExists:          $3.(bool),
+			FunctionName:         $4.(*ast.TableName),
+			FunctionParam:        $6.([]*ast.StoreParameter),
+			ReturnType:           $9.(*types.FieldType),
+			RoutineCharacteristics: $10.([]*ast.RoutineOption),
+			FunctionBody:         $11,
+		}
+		startOffset := parser.startOffset(&yyS[yypt])
+		originStmt := $11
+		originStmt.SetText(parser.lexer.client, strings.TrimSpace(parser.src[startOffset:parser.yylval.offset]))
+		startOffset = parser.startOffset(&yyS[yypt-6])
+		if parser.src[startOffset] == '(' {
+			startOffset++
+		}
+		endOffset := parser.startOffset(&yyS[yypt-4])
+		x.FunctionParamStr = strings.TrimSpace(parser.src[startOffset:endOffset])
+		$$ = x
+	}
+
+/********************************************************************************************
 *  DROP PROCEDURE  [IF EXISTS] sp_name
 ********************************************************************************************/
 DropProcedureStmt:
@@ -17066,6 +17274,18 @@ DropProcedureStmt:
 		$$ = &ast.DropProcedureStmt{
 			IfExists:      $3.(bool),
 			ProcedureName: $4.(*ast.TableName),
+		}
+	}
+
+/********************************************************************************************
+*  DROP FUNCTION  [IF EXISTS] sp_name
+********************************************************************************************/
+DropFunctionStmt:
+	"DROP" "FUNCTION" IfExists TableName
+	{
+		$$ = &ast.DropFunctionStmt{
+			IfExists:     $3.(bool),
+			FunctionName: $4.(*ast.TableName),
 		}
 	}
 

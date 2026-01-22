@@ -36,9 +36,12 @@ func TestProcedureVisitorCover(t *testing.T) {
 	stmts2 := []ast.StmtNode{
 		&ast.ProcedureBlock{},
 		&ast.ProcedureInfo{ProcedureBody: &ast.ProcedureBlock{}},
+		&ast.FunctionInfo{FunctionBody: &ast.ProcedureBlock{}},
 		&ast.DropProcedureStmt{},
+		&ast.DropFunctionStmt{},
 		&ast.ProcedureSignalStmt{},
 		&ast.ProcedureLoopStmt{},
+		&ast.ProcedureReturnStmt{ReturnExpr: ast.NewValueExpr("1", "", "")},
 	}
 	for _, v := range stmts2 {
 		v.Accept(visitor{})
@@ -119,6 +122,32 @@ func TestProcedure(t *testing.T) {
 		_, ok := stmt[0].(*ast.ProcedureInfo)
 		require.True(t, ok, testcase)
 	}
+}
+
+func TestFunction(t *testing.T) {
+	p := parser.New()
+	testcases := []string{
+		"create function test_func(x int) returns int begin return x * 2; end;",
+		"create function test_func(x int) returns int deterministic begin return x * 2; end;",
+		"create function test_func(x int) returns int no sql begin return x * 2; end;",
+		"create function test_func(x int) returns int reads sql data begin return x * 2; end;",
+		"create function RandomNumber(minval int, maxval int) returns float begin return floor(rand()*(maxval - minval + 1)) + minval; end;",
+		"create function calc_tax(amount decimal(10,2)) returns decimal(10,2) begin return amount * 0.1; end;",
+	}
+	for _, testcase := range testcases {
+		stmt, _, err := p.Parse(testcase, "", "")
+		if err != nil {
+			fmt.Println(testcase)
+		}
+		require.NoError(t, err)
+		_, ok := stmt[0].(*ast.FunctionInfo)
+		require.True(t, ok, testcase)
+	}
+
+	stmt, _, err := p.Parse("drop function if exists test_func", "", "")
+	require.NoError(t, err)
+	_, ok := stmt[0].(*ast.DropFunctionStmt)
+	require.True(t, ok)
 }
 
 func TestShowCreateProcedure(t *testing.T) {
