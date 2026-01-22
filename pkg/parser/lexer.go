@@ -104,18 +104,23 @@ func (s *Scanner) reset(sql string) {
 	s.identifierDot = false
 }
 
+func (s *Scanner) stmtTextRange() (text string, startOffset, endOffset int) {
+	endOffset = s.r.pos().Offset
+	if endOffset > 0 && s.r.s[endOffset-1] == '\n' {
+		endOffset-- // trim new line
+	}
+	startOffset = s.stmtStartPos
+	if startOffset < len(s.r.s) && s.r.s[startOffset] == '\n' {
+		startOffset++
+	}
+
+	text = s.r.s[startOffset:endOffset]
+	s.stmtStartPos = endOffset
+	return text, startOffset, endOffset
+}
+
 func (s *Scanner) stmtText() string {
-	endPos := s.r.pos().Offset
-	if s.r.s[endPos-1] == '\n' {
-		endPos = endPos - 1 // trim new line
-	}
-	if s.r.s[s.stmtStartPos] == '\n' {
-		s.stmtStartPos++
-	}
-
-	text := s.r.s[s.stmtStartPos:endPos]
-
-	s.stmtStartPos = endPos
+	text, _, _ := s.stmtTextRange()
 	return text
 }
 

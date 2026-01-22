@@ -6101,6 +6101,45 @@ func TestFuncCallExprOffset(t *testing.T) {
 	}
 }
 
+func TestStmtOriginTextPosition(t *testing.T) {
+	p := parser.New()
+	sql := "SELECT 1; CREATE PROCEDURE p() BEGIN SELECT 2; SET @a=1; END; CREATE FUNCTION f() RETURNS INT RETURN 3"
+	stmts, _, err := p.Parse(sql, "", "")
+	require.NoError(t, err)
+	require.Len(t, stmts, 3)
+
+	firstSemi := strings.Index(sql, ";")
+	require.NotEqual(t, -1, firstSemi)
+	require.Equal(t, strings.Index(sql, "SELECT 1"), stmts[0].OriginTextPosition())
+	require.Equal(t, firstSemi+1, stmts[0].OriginTextEndPosition())
+
+	proc, ok := stmts[1].(*ast.ProcedureInfo)
+	require.True(t, ok)
+	procStart := strings.Index(sql, "CREATE PROCEDURE")
+	require.NotEqual(t, -1, procStart)
+	require.Equal(t, procStart, proc.OriginTextPosition())
+	procEnd := strings.Index(sql, "END;")
+	require.NotEqual(t, -1, procEnd)
+	require.Equal(t, procEnd+len("END;"), proc.OriginTextEndPosition())
+
+	block, ok := proc.ProcedureBody.(*ast.ProcedureBlock)
+	require.True(t, ok)
+	require.Len(t, block.ProcedureProcStmts, 2)
+	innerSelect := block.ProcedureProcStmts[0]
+	innerSet := block.ProcedureProcStmts[1]
+	require.Equal(t, strings.Index(sql, "SELECT 2"), innerSelect.OriginTextPosition())
+	require.Equal(t, strings.Index(sql, "SELECT 2;")+len("SELECT 2;"), innerSelect.OriginTextEndPosition())
+	require.Equal(t, strings.Index(sql, "SET @a=1"), innerSet.OriginTextPosition())
+	require.Equal(t, strings.Index(sql, "SET @a=1;")+len("SET @a=1;"), innerSet.OriginTextEndPosition())
+
+	fn, ok := stmts[2].(*ast.FunctionInfo)
+	require.True(t, ok)
+	fnStart := strings.Index(sql, "CREATE FUNCTION")
+	require.NotEqual(t, -1, fnStart)
+	require.Equal(t, fnStart, fn.OriginTextPosition())
+	require.Equal(t, len(sql), fn.OriginTextEndPosition())
+}
+
 func TestSessionManage(t *testing.T) {
 	table := []testCase{
 		// Kill statement.
@@ -7077,6 +7116,7 @@ func cleanPartition(n ast.Node) {
 func (checker *nodeTextCleaner) Enter(in ast.Node) (out ast.Node, skipChildren bool) {
 	in.SetText(nil, "")
 	in.SetOriginTextPosition(0)
+	in.SetOriginTextEndPosition(0)
 	if v, ok := in.(ast.ValueExpr); ok && v != nil {
 		tpFlag := v.GetType().GetFlag()
 		if tpFlag&mysql.UnderScoreCharsetFlag != 0 {
@@ -7087,6 +7127,26 @@ func (checker *nodeTextCleaner) Enter(in ast.Node) (out ast.Node, skipChildren b
 	}
 
 	switch node := in.(type) {
+	case *ast.ProcedureBlock:
+		for _, stmt := range node.ProcedureProcStmts {
+			stmt.Accept(checker)
+		}
+	case *ast.ProcedureIfBlock:
+		for _, stmt := range node.ProcedureIfStmts {
+			stmt.Accept(checker)
+		}
+	case *ast.ProcedureElseBlock:
+		for _, stmt := range node.ProcedureIfStmts {
+			stmt.Accept(checker)
+		}
+	case *ast.SimpleWhenThenStmt:
+		for _, stmt := range node.ProcedureStmts {
+			stmt.Accept(checker)
+		}
+	case *ast.SearchWhenThenStmt:
+		for _, stmt := range node.ProcedureStmts {
+			stmt.Accept(checker)
+		}
 	case *ast.CreateTableStmt:
 		for _, opt := range node.Options {
 			switch opt.Tp {
