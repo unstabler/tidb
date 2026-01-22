@@ -28,7 +28,9 @@ var (
 
 	_ StmtNode = &ProcedureBlock{}
 	_ StmtNode = &ProcedureInfo{}
+	_ StmtNode = &FunctionInfo{}
 	_ StmtNode = &DropProcedureStmt{}
+	_ StmtNode = &DropFunctionStmt{}
 	_ StmtNode = &ProcedureElseIfBlock{}
 	_ StmtNode = &ProcedureElseBlock{}
 	_ StmtNode = &ProcedureIfBlock{}
@@ -39,6 +41,7 @@ var (
 	_ StmtNode = &ProcedureSignalStmt{}
 	_ StmtNode = &ProcedureLoopStmt{}
 	_ StmtNode = &ProcedureJump{}
+	_ StmtNode = &ProcedureReturnStmt{}
 
 	_ DeclNode = &ProcedureErrorControl{}
 	_ DeclNode = &ProcedureCursor{}
@@ -73,6 +76,55 @@ const (
 	PROCEDUR_SQLEXCEPTION
 	PROCEDUR_END
 )
+
+// RoutineOptionType is the type for routine characteristics.
+type RoutineOptionType int
+
+// RoutineOption types.
+const (
+	RoutineOptionNone RoutineOptionType = iota
+	RoutineOptionDeterministic
+	RoutineOptionNotDeterministic
+	RoutineOptionNoSQL
+	RoutineOptionContainsSQL
+	RoutineOptionReadsSQLData
+	RoutineOptionModifiesSQLData
+	RoutineOptionSQLSecurityDefiner
+	RoutineOptionSQLSecurityInvoker
+	RoutineOptionComment
+)
+
+// RoutineOption represents a routine characteristic option.
+type RoutineOption struct {
+	Tp       RoutineOptionType
+	StrValue string
+}
+
+// Restore implements Node interface.
+func (n *RoutineOption) Restore(ctx *format.RestoreCtx) error {
+	switch n.Tp {
+	case RoutineOptionDeterministic:
+		ctx.WriteKeyWord("DETERMINISTIC")
+	case RoutineOptionNotDeterministic:
+		ctx.WriteKeyWord("NOT DETERMINISTIC")
+	case RoutineOptionNoSQL:
+		ctx.WriteKeyWord("NO SQL")
+	case RoutineOptionContainsSQL:
+		ctx.WriteKeyWord("CONTAINS SQL")
+	case RoutineOptionReadsSQLData:
+		ctx.WriteKeyWord("READS SQL DATA")
+	case RoutineOptionModifiesSQLData:
+		ctx.WriteKeyWord("MODIFIES SQL DATA")
+	case RoutineOptionSQLSecurityDefiner:
+		ctx.WriteKeyWord("SQL SECURITY DEFINER")
+	case RoutineOptionSQLSecurityInvoker:
+		ctx.WriteKeyWord("SQL SECURITY INVOKER")
+	case RoutineOptionComment:
+		ctx.WriteKeyWord("COMMENT ")
+		ctx.WriteString(n.StrValue)
+	}
+	return nil
+}
 
 // DeclNode expresses procedure block variable interface(include handler\cursor\sp variable)
 type DeclNode interface {
@@ -327,6 +379,83 @@ func (n *ProcedureInfo) Accept(v Visitor) (Node, bool) {
 	return v.Leave(n)
 }
 
+// FunctionInfo stores all function information.
+type FunctionInfo struct {
+	stmtNode
+	IfNotExists           bool
+	FunctionName          *TableName
+	FunctionParam         []*StoreParameter // function param
+	ReturnType            *types.FieldType
+	RoutineCharacteristics []*RoutineOption
+	FunctionBody          StmtNode // function body statement
+	FunctionParamStr      string   // function parameter string
+}
+
+// Restore implements Node interface.
+func (n *FunctionInfo) Restore(ctx *format.RestoreCtx) error {
+	ctx.WriteKeyWord("CREATE FUNCTION ")
+	if n.IfNotExists {
+		ctx.WriteKeyWord("IF NOT EXISTS ")
+	}
+	if err := n.FunctionName.Restore(ctx); err != nil {
+		return err
+	}
+	ctx.WritePlain("(")
+	for i, FunctionParam := range n.FunctionParam {
+		if i > 0 {
+			ctx.WritePlain(",")
+		}
+		if err := FunctionParam.Restore(ctx); err != nil {
+			return err
+		}
+	}
+	ctx.WritePlain(") ")
+	ctx.WriteKeyWord("RETURNS ")
+	if n.ReturnType != nil {
+		ctx.WriteKeyWord(n.ReturnType.CompactStr())
+	}
+	if len(n.RoutineCharacteristics) > 0 {
+		ctx.WritePlain(" ")
+		for i, opt := range n.RoutineCharacteristics {
+			if i > 0 {
+				ctx.WritePlain(" ")
+			}
+			if err := opt.Restore(ctx); err != nil {
+				return err
+			}
+		}
+	}
+	ctx.WritePlain(" ")
+	if n.FunctionBody != nil {
+		return n.FunctionBody.Restore(ctx)
+	}
+	return nil
+}
+
+// Accept implements Node Accept interface.
+func (n *FunctionInfo) Accept(v Visitor) (Node, bool) {
+	newNode, skipChildren := v.Enter(n)
+	if skipChildren {
+		return v.Leave(newNode)
+	}
+	n = newNode.(*FunctionInfo)
+	for i, FunctionParam := range n.FunctionParam {
+		node, ok := FunctionParam.Accept(v)
+		if !ok {
+			return n, false
+		}
+		n.FunctionParam[i] = node.(*StoreParameter)
+	}
+	if n.FunctionBody != nil {
+		node, ok := n.FunctionBody.Accept(v)
+		if !ok {
+			return n, false
+		}
+		n.FunctionBody = node.(StmtNode)
+	}
+	return v.Leave(n)
+}
+
 // DropProcedureStmt represents the ast of `drop procedure`
 type DropProcedureStmt struct {
 	stmtNode
@@ -355,6 +484,36 @@ func (n *DropProcedureStmt) Accept(v Visitor) (Node, bool) {
 		return v.Leave(newNode)
 	}
 	n = newNode.(*DropProcedureStmt)
+	return v.Leave(n)
+}
+
+// DropFunctionStmt represents the ast of `drop function`
+type DropFunctionStmt struct {
+	stmtNode
+
+	IfExists     bool
+	FunctionName *TableName
+}
+
+// Restore implements DropFunctionStmt interface.
+func (n *DropFunctionStmt) Restore(ctx *format.RestoreCtx) error {
+	ctx.WriteKeyWord("DROP FUNCTION ")
+	if n.IfExists {
+		ctx.WriteKeyWord("IF EXISTS ")
+	}
+	if err := n.FunctionName.Restore(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Accept implements Node interface.
+func (n *DropFunctionStmt) Accept(v Visitor) (Node, bool) {
+	newNode, skipChildren := v.Enter(n)
+	if skipChildren {
+		return v.Leave(newNode)
+	}
+	n = newNode.(*DropFunctionStmt)
 	return v.Leave(n)
 }
 
@@ -890,6 +1049,39 @@ func (n *ProcedureSignalStmt) Accept(v Visitor) (Node, bool) {
 			return n, false
 		}
 		n.InfoItems[i] = node.(*ProcedureSignalInfoItem)
+	}
+	return v.Leave(n)
+}
+
+// ProcedureReturnStmt stores `return expr` statement.
+type ProcedureReturnStmt struct {
+	stmtNode
+
+	ReturnExpr ExprNode
+}
+
+// Restore implements ProcedureReturnStmt interface.
+func (n *ProcedureReturnStmt) Restore(ctx *format.RestoreCtx) error {
+	ctx.WriteKeyWord("RETURN ")
+	if n.ReturnExpr == nil {
+		return nil
+	}
+	return n.ReturnExpr.Restore(ctx)
+}
+
+// Accept implements ProcedureReturnStmt Accept interface.
+func (n *ProcedureReturnStmt) Accept(v Visitor) (Node, bool) {
+	newNode, skipChildren := v.Enter(n)
+	if skipChildren {
+		return v.Leave(newNode)
+	}
+	n = newNode.(*ProcedureReturnStmt)
+	if n.ReturnExpr != nil {
+		node, ok := n.ReturnExpr.Accept(v)
+		if !ok {
+			return n, false
+		}
+		n.ReturnExpr = node.(ExprNode)
 	}
 	return v.Leave(n)
 }
