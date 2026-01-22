@@ -106,6 +106,9 @@ func yySetOffset(yyVAL *yySymType, offset int) {
 	if yyVAL.expr != nil {
 		yyVAL.expr.SetOriginTextPosition(offset)
 	}
+	if yyVAL.statement != nil {
+		yyVAL.statement.SetOriginTextPosition(offset)
+	}
 }
 
 func yyhintSetOffset(_ *yyhintSymType, _ int) {
@@ -113,6 +116,10 @@ func yyhintSetOffset(_ *yyhintSymType, _ int) {
 
 type stmtTexter interface {
 	stmtText() string
+}
+
+type stmtTextRanger interface {
+	stmtTextRange() (text string, startOffset, endOffset int)
 }
 
 // New returns a Parser object with default SQL mode.
@@ -196,6 +203,14 @@ func (parser *Parser) Parse(sql, charset, collation string) (stmt []ast.StmtNode
 
 func (parser *Parser) lastErrorAsWarn() {
 	parser.lexer.lastErrorAsWarn()
+}
+
+func (parser *Parser) setStmtPositions(stmt ast.StmtNode, startOffset, endOffset int) {
+	if parser.lexer.skipPositionRecording {
+		return
+	}
+	stmt.SetOriginTextPosition(startOffset)
+	stmt.SetOriginTextEndPosition(endOffset)
 }
 
 // ParseOneStmt parses a query and returns an ast.StmtNode.

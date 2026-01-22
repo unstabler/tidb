@@ -48,6 +48,11 @@ type Node interface {
 	SetOriginTextPosition(offset int)
 	// OriginTextPosition get the start offset of this node in the origin text.
 	OriginTextPosition() int
+	// SetOriginTextEndPosition set the end offset (exclusive) of this node in the origin text.
+	// Only be called when `parser.lexer.skipPositionRecording` equals to false.
+	SetOriginTextEndPosition(offset int)
+	// OriginTextEndPosition get the end offset (exclusive) of this node in the origin text.
+	OriginTextEndPosition() int
 }
 
 // Flags indicates whether an expression contains certain types of expression.

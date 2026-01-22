@@ -133,6 +133,7 @@ type nodeTextCleaner struct {
 func (checker *nodeTextCleaner) Enter(in Node) (out Node, skipChildren bool) {
 	in.SetText(nil, "")
 	in.SetOriginTextPosition(0)
+	in.SetOriginTextEndPosition(0)
 	if v, ok := in.(ValueExpr); ok && v != nil {
 		tpFlag := v.GetType().GetFlag()
 		if tpFlag&mysql.UnderScoreCharsetFlag != 0 {
@@ -143,6 +144,26 @@ func (checker *nodeTextCleaner) Enter(in Node) (out Node, skipChildren bool) {
 	}
 
 	switch node := in.(type) {
+	case *ProcedureBlock:
+		for _, stmt := range node.ProcedureProcStmts {
+			stmt.Accept(checker)
+		}
+	case *ProcedureIfBlock:
+		for _, stmt := range node.ProcedureIfStmts {
+			stmt.Accept(checker)
+		}
+	case *ProcedureElseBlock:
+		for _, stmt := range node.ProcedureIfStmts {
+			stmt.Accept(checker)
+		}
+	case *SimpleWhenThenStmt:
+		for _, stmt := range node.ProcedureStmts {
+			stmt.Accept(checker)
+		}
+	case *SearchWhenThenStmt:
+		for _, stmt := range node.ProcedureStmts {
+			stmt.Accept(checker)
+		}
 	case *Constraint:
 		if node.Option != nil {
 			if node.Option.KeyBlockSize == 0x0 && node.Option.Tp == 0 && node.Option.Comment == "" {

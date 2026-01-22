@@ -23001,7 +23001,12 @@ yynewstate:
 		{
 			if yyS[yypt-0].statement != nil {
 				s := yyS[yypt-0].statement
-				if lexer, ok := yylex.(stmtTexter); ok {
+				if lexer, ok := yylex.(stmtTextRanger); ok {
+					text, _, endOffset := lexer.stmtTextRange()
+					s.SetText(parser.lexer.client, text)
+					startOffset := parser.startOffset(&yyS[yypt])
+					parser.setStmtPositions(s, startOffset, endOffset)
+				} else if lexer, ok := yylex.(stmtTexter); ok {
 					s.SetText(parser.lexer.client, lexer.stmtText())
 				}
 				parser.result = append(parser.result, s)
@@ -23011,7 +23016,12 @@ yynewstate:
 		{
 			if yyS[yypt-0].statement != nil {
 				s := yyS[yypt-0].statement
-				if lexer, ok := yylex.(stmtTexter); ok {
+				if lexer, ok := yylex.(stmtTextRanger); ok {
+					text, _, endOffset := lexer.stmtTextRange()
+					s.SetText(parser.lexer.client, text)
+					startOffset := parser.startOffset(&yyS[yypt])
+					parser.setStmtPositions(s, startOffset, endOffset)
+				} else if lexer, ok := yylex.(stmtTexter); ok {
 					s.SetText(parser.lexer.client, lexer.stmtText())
 				}
 				parser.result = append(parser.result, s)
@@ -26478,17 +26488,29 @@ yynewstate:
 	case 3011:
 		{
 			l := yyS[yypt-2].item.([]ast.StmtNode)
-			l = append(l, yyS[yypt-1].statement.(ast.StmtNode))
+			stmt := yyS[yypt-1].statement.(ast.StmtNode)
+			startOffset := parser.startOffset(&yyS[yypt-1])
+			endOffset := parser.startOffset(&yyS[yypt]) + 1
+			parser.setStmtPositions(stmt, startOffset, endOffset)
+			l = append(l, stmt)
 			parser.yyVAL.item = l
 		}
 	case 3012:
 		{
-			parser.yyVAL.item = []ast.StmtNode{yyS[yypt-1].statement.(ast.StmtNode)}
+			stmt := yyS[yypt-1].statement.(ast.StmtNode)
+			startOffset := parser.startOffset(&yyS[yypt-1])
+			endOffset := parser.startOffset(&yyS[yypt]) + 1
+			parser.setStmtPositions(stmt, startOffset, endOffset)
+			parser.yyVAL.item = []ast.StmtNode{stmt}
 		}
 	case 3013:
 		{
 			l := yyS[yypt-2].item.([]ast.StmtNode)
-			l = append(l, yyS[yypt-1].statement.(ast.StmtNode))
+			stmt := yyS[yypt-1].statement.(ast.StmtNode)
+			startOffset := parser.startOffset(&yyS[yypt-1])
+			endOffset := parser.startOffset(&yyS[yypt]) + 1
+			parser.setStmtPositions(stmt, startOffset, endOffset)
+			l = append(l, stmt)
 			parser.yyVAL.item = l
 		}
 	case 3014:

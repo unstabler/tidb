@@ -12785,7 +12785,12 @@ StatementList:
 	{
 		if $1 != nil {
 			s := $1
-			if lexer, ok := yylex.(stmtTexter); ok {
+			if lexer, ok := yylex.(stmtTextRanger); ok {
+				text, _, endOffset := lexer.stmtTextRange()
+				s.SetText(parser.lexer.client, text)
+				startOffset := parser.startOffset(&yyS[yypt])
+				parser.setStmtPositions(s, startOffset, endOffset)
+			} else if lexer, ok := yylex.(stmtTexter); ok {
 				s.SetText(parser.lexer.client, lexer.stmtText())
 			}
 			parser.result = append(parser.result, s)
@@ -12795,7 +12800,12 @@ StatementList:
 	{
 		if $3 != nil {
 			s := $3
-			if lexer, ok := yylex.(stmtTexter); ok {
+			if lexer, ok := yylex.(stmtTextRanger); ok {
+				text, _, endOffset := lexer.stmtTextRange()
+				s.SetText(parser.lexer.client, text)
+				startOffset := parser.startOffset(&yyS[yypt])
+				parser.setStmtPositions(s, startOffset, endOffset)
+			} else if lexer, ok := yylex.(stmtTexter); ok {
 				s.SetText(parser.lexer.client, lexer.stmtText())
 			}
 			parser.result = append(parser.result, s)
@@ -16874,19 +16884,31 @@ ProcedureProcStmts:
 |	ProcedureProcStmts ProcedureProcStmt ';'
 	{
 		l := $1.([]ast.StmtNode)
-		l = append(l, $2.(ast.StmtNode))
+		stmt := $2.(ast.StmtNode)
+		startOffset := parser.startOffset(&yyS[yypt-1])
+		endOffset := parser.startOffset(&yyS[yypt]) + 1
+		parser.setStmtPositions(stmt, startOffset, endOffset)
+		l = append(l, stmt)
 		$$ = l
 	}
 
 ProcedureProcStmt1s:
 	ProcedureProcStmt ';'
 	{
-		$$ = []ast.StmtNode{$1.(ast.StmtNode)}
+		stmt := $1.(ast.StmtNode)
+		startOffset := parser.startOffset(&yyS[yypt-1])
+		endOffset := parser.startOffset(&yyS[yypt]) + 1
+		parser.setStmtPositions(stmt, startOffset, endOffset)
+		$$ = []ast.StmtNode{stmt}
 	}
 |	ProcedureProcStmt1s ProcedureProcStmt ';'
 	{
 		l := $1.([]ast.StmtNode)
-		l = append(l, $2.(ast.StmtNode))
+		stmt := $2.(ast.StmtNode)
+		startOffset := parser.startOffset(&yyS[yypt-1])
+		endOffset := parser.startOffset(&yyS[yypt]) + 1
+		parser.setStmtPositions(stmt, startOffset, endOffset)
+		l = append(l, stmt)
 		$$ = l
 	}
 

@@ -27,8 +27,9 @@ type node struct {
 	enc      charset.Encoding
 	once     *sync.Once
 
-	text   string
-	offset int
+	text      string
+	offset    int
+	endOffset int
 }
 
 // SetOriginTextPosition implements Node interface.
@@ -39,6 +40,16 @@ func (n *node) SetOriginTextPosition(offset int) {
 // OriginTextPosition implements Node interface.
 func (n *node) OriginTextPosition() int {
 	return n.offset
+}
+
+// SetOriginTextEndPosition implements Node interface.
+func (n *node) SetOriginTextEndPosition(offset int) {
+	n.endOffset = offset
+}
+
+// OriginTextEndPosition implements Node interface.
+func (n *node) OriginTextEndPosition() int {
+	return n.endOffset
 }
 
 // SetText implements Node interface.

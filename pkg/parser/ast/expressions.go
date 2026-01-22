@@ -1487,8 +1487,9 @@ func (n *SetCollationExpr) Accept(v Visitor) (Node, bool) {
 
 type exprCleaner struct {
 	// for Text Position clean.
-	oldTextPos []int
-	restore    bool
+	oldTextPos    []int
+	oldTextEndPos []int
+	restore       bool
 	// for Name.O clean, ast.FuncCallExpr should be case-insensitive.
 	oldOriginFuncName []string
 }
@@ -1501,6 +1502,8 @@ func (e *exprCleaner) Enter(n Node) (node Node, skipChildren bool) {
 	if e.restore {
 		n.SetOriginTextPosition(e.oldTextPos[0])
 		e.oldTextPos = e.oldTextPos[1:]
+		n.SetOriginTextEndPosition(e.oldTextEndPos[0])
+		e.oldTextEndPos = e.oldTextEndPos[1:]
 		if f, ok := n.(*FuncCallExpr); ok {
 			f.FnName.O = e.oldOriginFuncName[0]
 			e.oldOriginFuncName = e.oldOriginFuncName[1:]
@@ -1508,7 +1511,9 @@ func (e *exprCleaner) Enter(n Node) (node Node, skipChildren bool) {
 		return n, false
 	}
 	e.oldTextPos = append(e.oldTextPos, n.OriginTextPosition())
+	e.oldTextEndPos = append(e.oldTextEndPos, n.OriginTextEndPosition())
 	n.SetOriginTextPosition(0)
+	n.SetOriginTextEndPosition(0)
 	if f, ok := n.(*FuncCallExpr); ok {
 		e.oldOriginFuncName = append(e.oldOriginFuncName, f.FnName.O)
 		f.FnName.O = f.FnName.L
