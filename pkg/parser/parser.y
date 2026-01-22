@@ -992,6 +992,7 @@ import (
 	AlterSequenceStmt          "Alter sequence statement"
 	AnalyzeTableStmt           "Analyze table statement"
 	BeginTransactionStmt       "BEGIN TRANSACTION statement"
+	StartTransactionStmt       "START TRANSACTION statement"
 	BinlogStmt                 "Binlog base64 statement"
 	BRIEStmt                   "BACKUP or RESTORE statement"
 	CalibrateResourceStmt      "CALIBRATE RESOURCE statement"
@@ -3481,7 +3482,13 @@ BeginTransactionStmt:
 			Mode: ast.Optimistic,
 		}
 	}
-|	"START" "TRANSACTION"
+|	StartTransactionStmt
+	{
+		$$ = $1
+	}
+
+StartTransactionStmt:
+	"START" "TRANSACTION"
 	{
 		$$ = &ast.BeginStmt{}
 	}
@@ -16481,6 +16488,7 @@ ProcedureStatementStmt:
 |	UseStmt
 |	InsertIntoStmt
 |	ReplaceIntoStmt
+|	StartTransactionStmt
 |	CommitStmt
 |	RollbackStmt
 |	ExplainStmt
