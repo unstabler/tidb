@@ -17,6 +17,7 @@
 
 TiDB (/’taɪdiːbi:/, "Ti" stands for Titanium) is an open-source, cloud-native, distributed SQL database designed for high availability, horizontal and vertical scalability, strong consistency, and high performance.
 
+- [Fork Notes](#fork-notes)
 - [Key Features](#key-features)
 - [Quick Start](#quick-start)
 - [Need Help?](#need-help)
@@ -25,6 +26,16 @@ TiDB (/’taɪdiːbi:/, "Ti" stands for Titanium) is an open-source, cloud-nativ
 - [License](#license)
 - [See Also](#see-also)
 - [Acknowledgments](#acknowledgments)
+
+## Fork Notes
+
+This repository is a fork of PingCAP TiDB focused on MySQL-compatible SQL parsing (primarily under `pkg/parser`). Compared to upstream `master`, it adds stored routine syntax support and related tooling improvements.
+
+- Stored procedures: support for `SELECT ... INTO` variables, labeled `LOOP ... END LOOP`, `DECLARE CONDITION`, `SIGNAL SQLSTATE`, and `START TRANSACTION` inside procedure bodies.
+- Stored functions: `CREATE FUNCTION` / `DROP FUNCTION` parsing with `RETURNS`, routine characteristics, and `RETURN` statements (including AST + semantic plumbing).
+- Source ranges: AST nodes capture statement start/end offsets (including statements inside procedures/functions) for diagnostics and tooling.
+- Keywords: routine-related words (for example: `CONTAINS`, `DETERMINISTIC`, `MODIFIES`, `READS`, `RETURN`, `RETURNS`) are treated as reserved to support routine parsing.
+- **Notice: All contributions in this fork were entirely generated via OpenAI Codex (Vibe Coding).**
 
 ## Key Features
 
