@@ -47,7 +47,7 @@ func TestSimple(t *testing.T) {
 		"fulltext", "grant", "group", "having", "hour_microsecond", "hour_minute",
 		"hour_second", "if", "ignore", "in", "index", "infile", "inner", "insert", "int", "into", "integer",
 		"interval", "is", "join", "key", "keys", "kill", "leading", "left", "like", "ilike", "limit", "lines", "load",
-		"localtime", "localtimestamp", "lock", "longblob", "longtext", "mediumblob", "maxvalue", "mediumint", "mediumtext",
+		"localtime", "localtimestamp", "lock", "loop", "longblob", "longtext", "mediumblob", "maxvalue", "mediumint", "mediumtext",
 		"minute_microsecond", "minute_second", "mod", "not", "no_write_to_binlog", "null", "numeric",
 		"on", "option", "optionally", "or", "order", "outer", "partition", "precision", "primary", "procedure", "range", "read", "real", "recursive",
 		"references", "regexp", "rename", "repeat", "replace", "revoke", "restrict", "right", "rlike",
