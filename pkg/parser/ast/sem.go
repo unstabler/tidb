@@ -1285,6 +1285,11 @@ func (n *ProcedureSignalStmt) SEMCommand() string {
 }
 
 // SEMCommand returns the command string for the statement.
+func (n *ProcedureLoopStmt) SEMCommand() string {
+	return ProcedureCommand
+}
+
+// SEMCommand returns the command string for the statement.
 func (n *ProcedureOpenCur) SEMCommand() string {
 	return ProcedureCommand
 }

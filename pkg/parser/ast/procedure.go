@@ -37,6 +37,7 @@ var (
 	_ StmtNode = &ProcedureLabelBlock{}
 	_ StmtNode = &ProcedureLabelLoop{}
 	_ StmtNode = &ProcedureSignalStmt{}
+	_ StmtNode = &ProcedureLoopStmt{}
 	_ StmtNode = &ProcedureJump{}
 
 	_ DeclNode = &ProcedureErrorControl{}
@@ -890,6 +891,46 @@ func (n *ProcedureSignalStmt) Accept(v Visitor) (Node, bool) {
 		}
 		n.InfoItems[i] = node.(*ProcedureSignalInfoItem)
 	}
+	return v.Leave(n)
+}
+
+// ProcedureLoopStmt store `loop ... end loop` statement.
+type ProcedureLoopStmt struct {
+	stmtNode
+
+	Body []StmtNode
+}
+
+// Restore implements ProcedureLoopStmt interface.
+func (n *ProcedureLoopStmt) Restore(ctx *format.RestoreCtx) error {
+	ctx.WriteKeyWord("LOOP ")
+	for _, stmt := range n.Body {
+		err := stmt.Restore(ctx)
+		if err != nil {
+			return err
+		}
+		ctx.WriteKeyWord(";")
+	}
+	ctx.WriteKeyWord("END LOOP")
+	return nil
+}
+
+// Accept implements ProcedureLoopStmt Accept interface.
+func (n *ProcedureLoopStmt) Accept(v Visitor) (Node, bool) {
+	newNode, skipChildren := v.Enter(n)
+	if skipChildren {
+		return v.Leave(newNode)
+	}
+	n = newNode.(*ProcedureLoopStmt)
+
+	for i, stmt := range n.Body {
+		node, ok := stmt.Accept(v)
+		if !ok {
+			return n, false
+		}
+		n.Body[i] = node.(StmtNode)
+	}
+
 	return v.Leave(n)
 }
 

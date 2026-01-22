@@ -201,6 +201,7 @@ import (
 	long              "LONG"
 	longblobType      "LONGBLOB"
 	longtextType      "LONGTEXT"
+	loop              "LOOP"
 	lowPriority       "LOW_PRIORITY"
 	match             "MATCH"
 	maxValue          "MAXVALUE"
@@ -16890,6 +16891,12 @@ ProcedureUnlabelLoopStmt:
 		$$ = &ast.ProcedureRepeatStmt{
 			Body:      $2.([]ast.StmtNode),
 			Condition: $4.(ast.ExprNode),
+		}
+	}
+|	"LOOP" ProcedureProcStmt1s "END" "LOOP"
+	{
+		$$ = &ast.ProcedureLoopStmt{
+			Body: $2.([]ast.StmtNode),
 		}
 	}
 

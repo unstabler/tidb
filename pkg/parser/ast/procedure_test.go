@@ -38,6 +38,7 @@ func TestProcedureVisitorCover(t *testing.T) {
 		&ast.ProcedureInfo{ProcedureBody: &ast.ProcedureBlock{}},
 		&ast.DropProcedureStmt{},
 		&ast.ProcedureSignalStmt{},
+		&ast.ProcedureLoopStmt{},
 	}
 	for _, v := range stmts2 {
 		v.Accept(visitor{})
@@ -100,11 +101,13 @@ func TestProcedure(t *testing.T) {
 		`create procedure proc_2(id int) case when id = 1 Then select 1; when id = 2 then select 2; end case;`,
 		`create procedure proc_2(id int) case when id = 1 Then select 1; when id = 2 then select 2; else select 3; end case;`,
 		`create procedure proc_2(id int) begin REPEAT set id = id + 1; select 1; UNTIL id < 10 end REPEAT; end`,
+		`create procedure proc_2() begin LOOP select 1; end LOOP; end`,
 		`create procedure proc_2() labelname: begin declare a int;declare continue handler for SQLWARNING,NOT FOUND,SQLEXCEPTION select 1 ; end;`,
 		`create procedure proc_2() labelname: begin declare a int;declare continue handler for SQLWARNING,NOT FOUND,SQLEXCEPTION select 1 ; end labelname;`,
 		`create procedure proc_2() begin labelname: while id < 10 do set id = id + 1; select 1; end while; end`,
 		`create procedure proc_2() begin labelname: while id < 10 do set id = id + 1; select 1; end while labelname; end`,
 		`create procedure proc_2(id int) begin labelname: REPEAT set id = id + 1; select 1; UNTIL id < 10 end REPEAT labelname; end`,
+		`create procedure proc_2() begin labelname: LOOP select 1; end LOOP labelname; end`,
 	}
 	for _, testcase := range testcases {
 		stmt, _, err := p.Parse(testcase, "", "")
@@ -224,8 +227,16 @@ func TestProcedureRestore(t *testing.T) {
 			"CREATE PROCEDURE `proc_2`() CASE WHEN _UTF8MB4'1980-10-01' THEN SELECT 1;WHEN _UTF8MB4'1980-10-02' THEN SELECT 2; ELSE SELECT 3; END CASE",
 		},
 		{
+			"CREATE PROCEDURE `proc_2`() BEGIN LOOP SELECT 1; END LOOP; END",
+			"CREATE PROCEDURE `proc_2`() BEGIN LOOP SELECT 1;END LOOP; END",
+		},
+		{
 			"CREATE PROCEDURE `proc_2`() `labelname`: BEGIN DECLARE `a` INT(11);DECLARE CONTINUE HANDLER FOR SQLWARNING, NOT FOUND, SQLEXCEPTION SELECT 1; END `labelname`",
 			"CREATE PROCEDURE `proc_2`() `labelname`: BEGIN DECLARE `a` INT(11);DECLARE CONTINUE HANDLER FOR SQLWARNING, NOT FOUND, SQLEXCEPTION SELECT 1; END `labelname`",
+		},
+		{
+			"CREATE PROCEDURE `proc_2`() BEGIN `labelname`: LOOP SELECT 1; END LOOP `labelname`; END",
+			"CREATE PROCEDURE `proc_2`() BEGIN `labelname`: LOOP SELECT 1;END LOOP `labelname`; END",
 		},
 		{
 			"CREATE PROCEDURE `proc_2`() BEGIN `labelname`: WHILE `id`<10 DO SET @@SESSION.`id`=`id`+1;SELECT 1;END WHILE `labelname`; END",
