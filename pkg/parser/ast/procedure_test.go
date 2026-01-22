@@ -26,6 +26,8 @@ func TestProcedureVisitorCover(t *testing.T) {
 	stmts := []ast.Node{
 		&ast.StoreParameter{},
 		&ast.ProcedureDecl{},
+		&ast.ProcedureConditionDecl{},
+		&ast.ProcedureSignalInfoItem{Value: ast.NewValueExpr("1", "", "")},
 	}
 	for _, v := range stmts {
 		v.Accept(visitor{})
@@ -35,6 +37,7 @@ func TestProcedureVisitorCover(t *testing.T) {
 		&ast.ProcedureBlock{},
 		&ast.ProcedureInfo{ProcedureBody: &ast.ProcedureBlock{}},
 		&ast.DropProcedureStmt{},
+		&ast.ProcedureSignalStmt{},
 	}
 	for _, v := range stmts2 {
 		v.Accept(visitor{})
@@ -79,6 +82,8 @@ func TestProcedure(t *testing.T) {
 		`create procedure proc_2() begin declare test1 CURSOR for select 1; end;`,
 		`create procedure proc_2() begin declare test1 CURSOR for select 1; select 1;open test1; end;`,
 		`create procedure proc_2() begin declare a int;declare test1 CURSOR for select 1; select 1;open test1; fetch test1 into a; close test1;end;`,
+		`create procedure proc_2() begin declare insufficient_funds condition for sqlstate '45002'; select 1; end;`,
+		`create procedure proc_2() begin declare insufficient_funds condition for 1146; select 1; end;`,
 		`create procedure proc_2() begin declare a int;declare exit handler for 1111 select 1 ; end;`,
 		`create procedure proc_2() begin declare a int;declare exit handler for 1111,1112 select 1 ; end;`,
 		`create procedure proc_2() begin declare a int;declare exit handler for SQLWARNING,NOT FOUND,SQLEXCEPTION select 1 ; end;`,
@@ -87,6 +92,7 @@ func TestProcedure(t *testing.T) {
 		`create procedure proc_2() begin declare a int;declare continue handler for sqlstate 'ssss' begin select 1; end; end;`,
 		`create procedure proc_2() begin declare a int;declare continue handler for sqlstate 'ssss' while id < 10 do set id = id + 1; select 1; end while; end;`,
 		`create procedure proc_2() begin declare a int;declare continue handler for sqlstate 'ssss' if i > 1 then select 2; elseif i = 3 then select 4;end if; end;`,
+		`create procedure proc_2() begin signal sqlstate '45000' set message_text = 'Error occurred'; end`,
 		`create procedure proc_2() case now() when "1980-10-01" Then select 1; end case;`,
 		`create procedure proc_2() case now() when "1980-10-01" Then select 1; when "1980-10-01" then select 2; end case;`,
 		`create procedure proc_2() case now() when "1980-10-01" Then select 1; when "1980-10-01" then select 2; else select 3; end case;`,
@@ -170,6 +176,14 @@ func TestProcedureRestore(t *testing.T) {
 			"CREATE PROCEDURE `proc_2`() BEGIN DECLARE `a` INT(11);DECLARE TEST1 CURSOR FOR SELECT 1;SELECT 1;OPEN TEST1;FETCH TEST1 INTO A;CLOSE TEST1; END",
 		},
 		{
+			"CREATE PROCEDURE `proc_2`() BEGIN DECLARE `insufficient_funds` CONDITION FOR SQLSTATE '45002';SELECT 1; END",
+			"CREATE PROCEDURE `proc_2`() BEGIN DECLARE `insufficient_funds` CONDITION FOR SQLSTATE '45002';SELECT 1; END",
+		},
+		{
+			"CREATE PROCEDURE `proc_2`() BEGIN DECLARE `insufficient_funds` CONDITION FOR 1146;SELECT 1; END",
+			"CREATE PROCEDURE `proc_2`() BEGIN DECLARE `insufficient_funds` CONDITION FOR 1146;SELECT 1; END",
+		},
+		{
 			"CREATE PROCEDURE `proc_2`() BEGIN DECLARE `a` INT(11);DECLARE EXIT HANDLER FOR SQLWARNING, NOT FOUND, SQLEXCEPTION SELECT 1; END",
 			"CREATE PROCEDURE `proc_2`() BEGIN DECLARE `a` INT(11);DECLARE EXIT HANDLER FOR SQLWARNING, NOT FOUND, SQLEXCEPTION SELECT 1; END",
 		},
@@ -180,6 +194,10 @@ func TestProcedureRestore(t *testing.T) {
 		{
 			"CREATE PROCEDURE `proc_2`() BEGIN DECLARE `a` INT(11);DECLARE CONTINUE HANDLER FOR SQLSTATE 'ssss' WHILE `id`<10 DO SET @@SESSION.`id`=`id`+1;SELECT 1;END WHILE; END",
 			"CREATE PROCEDURE `proc_2`() BEGIN DECLARE `a` INT(11);DECLARE CONTINUE HANDLER FOR SQLSTATE 'ssss' WHILE `id`<10 DO SET @@SESSION.`id`=`id`+1;SELECT 1;END WHILE; END",
+		},
+		{
+			"CREATE PROCEDURE `proc_2`() BEGIN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT=_UTF8MB4'Error occurred'; END",
+			"CREATE PROCEDURE `proc_2`() BEGIN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT=_UTF8MB4'Error occurred'; END",
 		},
 		{
 			"CREATE PROCEDURE `proc_2`() CASE NOW() WHEN _UTF8MB4'1980-10-01' THEN SELECT 1; END CASE",

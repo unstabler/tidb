@@ -99,6 +99,7 @@ import (
 	check             "CHECK"
 	collate           "COLLATE"
 	column            "COLUMN"
+	condition         "CONDITION"
 	constraint        "CONSTRAINT"
 	continueKwd       "CONTINUE"
 	convert           "CONVERT"
@@ -256,6 +257,7 @@ import (
 	selectKwd         "SELECT"
 	set               "SET"
 	show              "SHOW"
+	signal            "SIGNAL"
 	smallIntType      "SMALLINT"
 	spatial           "SPATIAL"
 	sql               "SQL"
@@ -1117,6 +1119,7 @@ import (
 	ProcedurelabeledLoopStmt   "The loop block with label in procedure"
 	ProcedureIterate           "The iterate statement in procedure, expressed by `iterate ...`"
 	ProcedureLeave             "The leave statement in procedure, expressed by `leave ...`"
+	ProcedureSignalStmt        "The signal statement in procedure, expressed by `signal ...`"
 
 %type	<item>
 	AdminShowSlow                          "Admin Show Slow statement"
@@ -1570,6 +1573,9 @@ import (
 	ProcedureFetchList                     "Procedure fetch into variables"
 	ProcedureHandlerType                   "Procedure handler operation type"
 	ProcedureHcondList                     "Procedure handler condition value list"
+	ProcedureSignalSetOpt                  "Optional signal set clause"
+	ProcedureSignalInfoItemList            "Signal info item list"
+	ProcedureSignalInfoItem                "Signal info item"
 
 %type	<ident>
 	AsOpt             "AS or EmptyString"
@@ -16547,6 +16553,14 @@ ProcedureDecl:
 		}
 		$$ = x
 	}
+|	"DECLARE" Identifier "CONDITION" "FOR" ProcedurceCond
+	{
+		name := strings.ToLower($2)
+		$$ = &ast.ProcedureConditionDecl{
+			CondName:  name,
+			CondValue: $5.(ast.ErrNode),
+		}
+	}
 |	"DECLARE" identifier "CURSOR" "FOR" ProcedureCursorSelectStmt
 	{
 		name := strings.ToLower($2)
@@ -16935,6 +16949,45 @@ ProcedureLeave:
 		}
 	}
 
+ProcedureSignalStmt:
+	"SIGNAL" "SQLSTATE" stringLit ProcedureSignalSetOpt
+	{
+		$$ = &ast.ProcedureSignalStmt{
+			SQLState:  $3,
+			InfoItems: $4.([]*ast.ProcedureSignalInfoItem),
+		}
+	}
+
+ProcedureSignalSetOpt:
+	{
+		$$ = []*ast.ProcedureSignalInfoItem{}
+	}
+|	"SET" ProcedureSignalInfoItemList
+	{
+		$$ = $2.([]*ast.ProcedureSignalInfoItem)
+	}
+
+ProcedureSignalInfoItemList:
+	ProcedureSignalInfoItem
+	{
+		$$ = []*ast.ProcedureSignalInfoItem{$1.(*ast.ProcedureSignalInfoItem)}
+	}
+|	ProcedureSignalInfoItemList ',' ProcedureSignalInfoItem
+	{
+		l := $1.([]*ast.ProcedureSignalInfoItem)
+		l = append(l, $3.(*ast.ProcedureSignalInfoItem))
+		$$ = l
+	}
+
+ProcedureSignalInfoItem:
+	Identifier eq Expression
+	{
+		$$ = &ast.ProcedureSignalInfoItem{
+			Name:  $1,
+			Value: $3.(ast.ExprNode),
+		}
+	}
+
 ProcedureProcStmt:
 	ProcedureStatementStmt
 |	ProcedureUnlabeledBlock
@@ -16948,6 +17001,7 @@ ProcedureProcStmt:
 |	ProcedurelabeledLoopStmt
 |	ProcedureIterate
 |	ProcedureLeave
+|	ProcedureSignalStmt
 
 /********************************************************************************************
  *

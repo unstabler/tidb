@@ -24,6 +24,7 @@ import (
 var (
 	_ Node = &StoreParameter{}
 	_ Node = &ProcedureDecl{}
+	_ Node = &ProcedureSignalInfoItem{}
 
 	_ StmtNode = &ProcedureBlock{}
 	_ StmtNode = &ProcedureInfo{}
@@ -35,11 +36,13 @@ var (
 	_ StmtNode = &ProcedureIfInfo{}
 	_ StmtNode = &ProcedureLabelBlock{}
 	_ StmtNode = &ProcedureLabelLoop{}
+	_ StmtNode = &ProcedureSignalStmt{}
 	_ StmtNode = &ProcedureJump{}
 
 	_ DeclNode = &ProcedureErrorControl{}
 	_ DeclNode = &ProcedureCursor{}
 	_ DeclNode = &ProcedureDecl{}
+	_ DeclNode = &ProcedureConditionDecl{}
 
 	_ LabelInfo = &ProcedureLabelBlock{}
 	_ LabelInfo = &ProcedureLabelLoop{}
@@ -179,6 +182,39 @@ func (n *ProcedureDecl) Accept(v Visitor) (Node, bool) {
 			return n, false
 		}
 		n.DeclDefault = node.(ExprNode)
+	}
+	return v.Leave(n)
+}
+
+// ProcedureConditionDecl represents a condition declaration in stored procedure.
+type ProcedureConditionDecl struct {
+	ProcedureDeclInfo
+
+	CondName  string
+	CondValue ErrNode
+}
+
+// Restore implements Node interface.
+func (n *ProcedureConditionDecl) Restore(ctx *format.RestoreCtx) error {
+	ctx.WriteKeyWord("DECLARE ")
+	ctx.WriteName(n.CondName)
+	ctx.WriteKeyWord(" CONDITION FOR ")
+	return n.CondValue.Restore(ctx)
+}
+
+// Accept implements Node Accept interface.
+func (n *ProcedureConditionDecl) Accept(v Visitor) (Node, bool) {
+	newNode, skipChildren := v.Enter(n)
+	if skipChildren {
+		return v.Leave(newNode)
+	}
+	n = newNode.(*ProcedureConditionDecl)
+	if n.CondValue != nil {
+		node, ok := n.CondValue.Accept(v)
+		if !ok {
+			return n, false
+		}
+		n.CondValue = node.(ErrNode)
 	}
 	return v.Leave(n)
 }
@@ -779,6 +815,80 @@ func (n *ProcedureWhileStmt) Accept(v Visitor) (Node, bool) {
 			return n, false
 		}
 		n.Body[i] = node.(StmtNode)
+	}
+	return v.Leave(n)
+}
+
+// ProcedureSignalInfoItem stores the info item in SIGNAL/RESIGNAL SET clause.
+type ProcedureSignalInfoItem struct {
+	node
+
+	Name  string
+	Value ExprNode
+}
+
+// Restore implements ProcedureSignalInfoItem interface.
+func (n *ProcedureSignalInfoItem) Restore(ctx *format.RestoreCtx) error {
+	ctx.WriteKeyWord(n.Name)
+	ctx.WritePlain("=")
+	return n.Value.Restore(ctx)
+}
+
+// Accept implements ProcedureSignalInfoItem Accept interface.
+func (n *ProcedureSignalInfoItem) Accept(v Visitor) (Node, bool) {
+	newNode, skipChildren := v.Enter(n)
+	if skipChildren {
+		return v.Leave(newNode)
+	}
+	n = newNode.(*ProcedureSignalInfoItem)
+	node, ok := n.Value.Accept(v)
+	if !ok {
+		return n, false
+	}
+	n.Value = node.(ExprNode)
+	return v.Leave(n)
+}
+
+// ProcedureSignalStmt stores `signal sqlstate ...` statement.
+type ProcedureSignalStmt struct {
+	stmtNode
+
+	SQLState  string
+	InfoItems []*ProcedureSignalInfoItem
+}
+
+// Restore implements ProcedureSignalStmt interface.
+func (n *ProcedureSignalStmt) Restore(ctx *format.RestoreCtx) error {
+	ctx.WriteKeyWord("SIGNAL SQLSTATE ")
+	ctx.WriteString(n.SQLState)
+	if len(n.InfoItems) == 0 {
+		return nil
+	}
+	ctx.WriteKeyWord(" SET ")
+	for i, item := range n.InfoItems {
+		if err := item.Restore(ctx); err != nil {
+			return err
+		}
+		if i+1 < len(n.InfoItems) {
+			ctx.WritePlain(", ")
+		}
+	}
+	return nil
+}
+
+// Accept implements ProcedureSignalStmt Accept interface.
+func (n *ProcedureSignalStmt) Accept(v Visitor) (Node, bool) {
+	newNode, skipChildren := v.Enter(n)
+	if skipChildren {
+		return v.Leave(newNode)
+	}
+	n = newNode.(*ProcedureSignalStmt)
+	for i, item := range n.InfoItems {
+		node, ok := item.Accept(v)
+		if !ok {
+			return n, false
+		}
+		n.InfoItems[i] = node.(*ProcedureSignalInfoItem)
 	}
 	return v.Leave(n)
 }
