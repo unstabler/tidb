@@ -752,6 +752,7 @@ var tokenMap = map[string]int{
 	"SHARED":                         shared,
 	"SHOW":                           show,
 	"SHUTDOWN":                       shutdown,
+	"SIGNAL":                         signal,
 	"SIGNED":                         signed,
 	"SIMILAR":                        similar,
 	"SIMPLE":                         simple,

@@ -51,7 +51,7 @@ func TestSimple(t *testing.T) {
 		"minute_microsecond", "minute_second", "mod", "not", "no_write_to_binlog", "null", "numeric",
 		"on", "option", "optionally", "or", "order", "outer", "partition", "precision", "primary", "procedure", "range", "read", "real", "recursive",
 		"references", "regexp", "rename", "repeat", "replace", "revoke", "restrict", "right", "rlike",
-		"schema", "schemas", "second_microsecond", "select", "set", "show", "smallint",
+		"schema", "schemas", "second_microsecond", "select", "set", "show", "signal", "smallint",
 		"starting", "table", "terminated", "then", "tinyblob", "tinyint", "tinytext", "to",
 		"trailing", "true", "union", "unique", "unlock", "unsigned",
 		"update", "use", "using", "utc_date", "values", "varbinary", "varchar",

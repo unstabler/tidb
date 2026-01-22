@@ -206,6 +206,7 @@ var Keywords = []KeywordsType{
 	{"SELECT", true, "reserved"},
 	{"SET", true, "reserved"},
 	{"SHOW", true, "reserved"},
+	{"SIGNAL", true, "reserved"},
 	{"SMALLINT", true, "reserved"},
 	{"SPATIAL", true, "reserved"},
 	{"SQL", true, "reserved"},
