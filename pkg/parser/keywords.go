@@ -48,6 +48,7 @@ var Keywords = []KeywordsType{
 	{"CHECK", true, "reserved"},
 	{"COLLATE", true, "reserved"},
 	{"COLUMN", true, "reserved"},
+	{"CONDITION", true, "reserved"},
 	{"CONSTRAINT", true, "reserved"},
 	{"CONTINUE", true, "reserved"},
 	{"CONVERT", true, "reserved"},

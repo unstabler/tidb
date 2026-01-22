@@ -26,6 +26,7 @@ func TestProcedureVisitorCover(t *testing.T) {
 	stmts := []ast.Node{
 		&ast.StoreParameter{},
 		&ast.ProcedureDecl{},
+		&ast.ProcedureConditionDecl{},
 	}
 	for _, v := range stmts {
 		v.Accept(visitor{})
@@ -79,6 +80,8 @@ func TestProcedure(t *testing.T) {
 		`create procedure proc_2() begin declare test1 CURSOR for select 1; end;`,
 		`create procedure proc_2() begin declare test1 CURSOR for select 1; select 1;open test1; end;`,
 		`create procedure proc_2() begin declare a int;declare test1 CURSOR for select 1; select 1;open test1; fetch test1 into a; close test1;end;`,
+		`create procedure proc_2() begin declare insufficient_funds condition for sqlstate '45002'; select 1; end;`,
+		`create procedure proc_2() begin declare insufficient_funds condition for 1146; select 1; end;`,
 		`create procedure proc_2() begin declare a int;declare exit handler for 1111 select 1 ; end;`,
 		`create procedure proc_2() begin declare a int;declare exit handler for 1111,1112 select 1 ; end;`,
 		`create procedure proc_2() begin declare a int;declare exit handler for SQLWARNING,NOT FOUND,SQLEXCEPTION select 1 ; end;`,
@@ -168,6 +171,14 @@ func TestProcedureRestore(t *testing.T) {
 		{
 			"CREATE PROCEDURE `proc_2`() BEGIN DECLARE `a` INT(11);DECLARE TEST1 CURSOR FOR SELECT 1;SELECT 1;OPEN TEST1;FETCH TEST1 INTO A;CLOSE TEST1; END",
 			"CREATE PROCEDURE `proc_2`() BEGIN DECLARE `a` INT(11);DECLARE TEST1 CURSOR FOR SELECT 1;SELECT 1;OPEN TEST1;FETCH TEST1 INTO A;CLOSE TEST1; END",
+		},
+		{
+			"CREATE PROCEDURE `proc_2`() BEGIN DECLARE `insufficient_funds` CONDITION FOR SQLSTATE '45002';SELECT 1; END",
+			"CREATE PROCEDURE `proc_2`() BEGIN DECLARE `insufficient_funds` CONDITION FOR SQLSTATE '45002';SELECT 1; END",
+		},
+		{
+			"CREATE PROCEDURE `proc_2`() BEGIN DECLARE `insufficient_funds` CONDITION FOR 1146;SELECT 1; END",
+			"CREATE PROCEDURE `proc_2`() BEGIN DECLARE `insufficient_funds` CONDITION FOR 1146;SELECT 1; END",
 		},
 		{
 			"CREATE PROCEDURE `proc_2`() BEGIN DECLARE `a` INT(11);DECLARE EXIT HANDLER FOR SQLWARNING, NOT FOUND, SQLEXCEPTION SELECT 1; END",

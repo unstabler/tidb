@@ -99,6 +99,7 @@ import (
 	check             "CHECK"
 	collate           "COLLATE"
 	column            "COLUMN"
+	condition         "CONDITION"
 	constraint        "CONSTRAINT"
 	continueKwd       "CONTINUE"
 	convert           "CONVERT"
@@ -16546,6 +16547,14 @@ ProcedureDecl:
 			x.DeclDefault = $4.(ast.ExprNode)
 		}
 		$$ = x
+	}
+|	"DECLARE" Identifier "CONDITION" "FOR" ProcedurceCond
+	{
+		name := strings.ToLower($2)
+		$$ = &ast.ProcedureConditionDecl{
+			CondName:  name,
+			CondValue: $5.(ast.ErrNode),
+		}
 	}
 |	"DECLARE" identifier "CURSOR" "FOR" ProcedureCursorSelectStmt
 	{

@@ -40,6 +40,7 @@ var (
 	_ DeclNode = &ProcedureErrorControl{}
 	_ DeclNode = &ProcedureCursor{}
 	_ DeclNode = &ProcedureDecl{}
+	_ DeclNode = &ProcedureConditionDecl{}
 
 	_ LabelInfo = &ProcedureLabelBlock{}
 	_ LabelInfo = &ProcedureLabelLoop{}
@@ -179,6 +180,39 @@ func (n *ProcedureDecl) Accept(v Visitor) (Node, bool) {
 			return n, false
 		}
 		n.DeclDefault = node.(ExprNode)
+	}
+	return v.Leave(n)
+}
+
+// ProcedureConditionDecl represents a condition declaration in stored procedure.
+type ProcedureConditionDecl struct {
+	ProcedureDeclInfo
+
+	CondName  string
+	CondValue ErrNode
+}
+
+// Restore implements Node interface.
+func (n *ProcedureConditionDecl) Restore(ctx *format.RestoreCtx) error {
+	ctx.WriteKeyWord("DECLARE ")
+	ctx.WriteName(n.CondName)
+	ctx.WriteKeyWord(" CONDITION FOR ")
+	return n.CondValue.Restore(ctx)
+}
+
+// Accept implements Node Accept interface.
+func (n *ProcedureConditionDecl) Accept(v Visitor) (Node, bool) {
+	newNode, skipChildren := v.Enter(n)
+	if skipChildren {
+		return v.Leave(newNode)
+	}
+	n = newNode.(*ProcedureConditionDecl)
+	if n.CondValue != nil {
+		node, ok := n.CondValue.Accept(v)
+		if !ok {
+			return n, false
+		}
+		n.CondValue = node.(ErrNode)
 	}
 	return v.Leave(n)
 }
